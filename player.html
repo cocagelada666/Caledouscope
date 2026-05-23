@@ -3,26 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<link rel="icon" href="touhou-tenshi.webp.png">
 <title>Meu Player</title>
+<link rel="icon" href="touhou-tenshi.webp.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: sans-serif; background: #0f0f0f; color: #eee; min-height: 100vh; }
-
-  /* NAV */
   nav { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
   nav h1 { font-size: 18px; font-weight: 600; color: #fff; }
   .nav-right { display: flex; align-items: center; gap: 12px; }
   .avatar-btn { width: 36px; height: 36px; border-radius: 50%; background: #3b3b3b; border: none; cursor: pointer; font-size: 15px; color: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
-
-  /* LAYOUT */
   .layout { display: flex; gap: 0; min-height: calc(100vh - 53px); }
   .sidebar { width: 260px; background: #141414; border-right: 1px solid #2a2a2a; padding: 1rem; flex-shrink: 0; overflow-y: auto; }
   .main { flex: 1; padding: 1.5rem; overflow-y: auto; }
-
-  /* SIDEBAR */
   .sidebar-section { margin-bottom: 1.5rem; }
   .sidebar-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 8px; }
   .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; color: #ccc; transition: background 0.15s; margin-bottom: 2px; }
@@ -31,14 +25,10 @@
   .history-entry { font-size: 13px; color: #aaa; padding: 6px 8px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .history-entry:hover { background: #2a2a2a; color: #fff; }
   .empty-msg { font-size: 13px; color: #555; padding: 4px 8px; }
-
-  /* PLAYER */
   .video-wrapper { background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 1rem; min-height: 200px; display: flex; align-items: center; justify-content: center; }
   .video-wrapper video { width: 100%; display: block; }
   .placeholder { text-align: center; padding: 3rem; color: #555; }
   .placeholder svg { width: 48px; height: 48px; margin-bottom: 12px; }
-
-  /* INPUTS */
   .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem; }
   .card h3 { font-size: 14px; color: #888; margin-bottom: 12px; }
   .input-row { display: flex; gap: 8px; }
@@ -56,19 +46,22 @@
   .status { font-size: 12px; color: #666; margin-top: 6px; min-height: 16px; }
   .status.error { color: #e05555; }
   .status.ok { color: #4caf50; }
-
-  /* MODAL */
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
-  .modal { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 1.5rem; width: 340px; }
+  .modal { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 1.5rem; width: 360px; max-height: 90vh; overflow-y: auto; }
   .modal h2 { font-size: 16px; margin-bottom: 1rem; }
   .modal-tabs { display: flex; gap: 8px; margin-bottom: 1rem; }
   .modal-tab { flex: 1; padding: 8px; background: #0f0f0f; border: 1px solid #2a2a2a; border-radius: 8px; cursor: pointer; font-size: 13px; color: #888; text-align: center; }
   .modal-tab.active { background: #2a2a2a; color: #fff; }
   .modal label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; margin-top: 10px; }
   .modal-actions { display: flex; gap: 8px; margin-top: 1rem; }
-  .avatar-preview { width: 60px; height: 60px; border-radius: 50%; background: #2a2a2a; margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; font-size: 24px; overflow: hidden; }
-  .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-upload-circle { width: 80px; height: 80px; border-radius: 50%; background: #2a2a2a; margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; font-size: 32px; overflow: hidden; cursor: pointer; border: 2px dashed #3a3a3a; position: relative; }
+  .avatar-upload-circle:hover { border-color: #5865f2; }
+  .avatar-upload-circle img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-upload-circle input { display: none; }
+  .avatar-upload-hint { font-size: 11px; color: #555; text-align: center; margin-bottom: 8px; }
   .hidden { display: none; }
+  .profile-avatar-large { width: 80px; height: 80px; border-radius: 50%; background: #2a2a2a; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; font-size: 32px; overflow: hidden; }
+  .profile-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
 </style>
 </head>
 <body>
@@ -79,12 +72,12 @@
     <span id="navUsername" style="font-size:14px;color:#aaa;"></span>
     <button class="avatar-btn" id="avatarBtn" onclick="openProfileModal()">
       <span id="avatarEmoji">👤</span>
+      <img id="avatarNavImg" src="" style="display:none;width:100%;height:100%;object-fit:cover;" />
     </button>
   </div>
 </nav>
 
 <div class="layout">
-  <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-title">Menu</div>
@@ -97,17 +90,13 @@
         Favoritos
       </div>
     </div>
-
     <div class="sidebar-section">
       <div class="sidebar-title">Histórico recente</div>
       <div id="historyList"><div class="empty-msg">Nenhum vídeo assistido ainda.</div></div>
     </div>
   </div>
 
-  <!-- MAIN -->
   <div class="main">
-
-    <!-- TAB PLAYER -->
     <div id="tabPlayer">
       <div class="video-wrapper" id="videoWrapper">
         <div class="placeholder" id="placeholder">
@@ -117,7 +106,7 @@
         <video id="player" controls style="display:none;" preload="metadata"></video>
       </div>
 
-      <div id="nowPlayingBar" class="hidden" style="display:none; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:8px; padding:10px 14px; margin-bottom:1rem; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div id="nowPlayingBar" style="display:none; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:8px; padding:10px 14px; margin-bottom:1rem; display:none; align-items:center; justify-content:space-between; gap:12px;">
         <span id="nowPlayingName" style="font-size:13px;color:#aaa;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
         <button onclick="addFavorite()" style="font-size:12px;padding:6px 12px;">❤️ Favoritar</button>
       </div>
@@ -141,12 +130,10 @@
       </label>
     </div>
 
-    <!-- TAB FAVORITOS -->
     <div id="tabFavorites" style="display:none;">
       <h2 style="font-size:18px;margin-bottom:1rem;">❤️ Favoritos</h2>
       <div id="favoritesList"><div class="empty-msg" style="color:#555;">Nenhum favorito ainda.</div></div>
     </div>
-
   </div>
 </div>
 
@@ -174,18 +161,13 @@
 
     <!-- REGISTER -->
     <div id="formRegister" style="display:none;">
-      <div class="avatar-preview" id="avatarPreview">😀</div>
-      <label>Escolher emoji de avatar</label>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
-        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('😀')">😀</span>
-        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('😎')">😎</span>
-        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🤖')">🤖</span>
-        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🐱')">🐱</span>
-        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🐸')">🐸</span>
-        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🦊')">🦊</span>
-        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🎮')">🎮</span>
-        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🔥')">🔥</span>
-      </div>
+      <label style="text-align:center;display:block;">Foto de perfil</label>
+      <label class="avatar-upload-circle" id="avatarUploadCircle">
+        <span id="avatarUploadEmoji">📷</span>
+        <img id="avatarUploadPreview" src="" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+        <input type="file" id="avatarFileInput" accept="image/*" onchange="previewAvatar(this)" />
+      </label>
+      <div class="avatar-upload-hint">Clique para escolher uma foto</div>
       <label>Nome de usuário</label>
       <input type="text" id="regUsername" placeholder="seu nome" />
       <label>Senha</label>
@@ -200,8 +182,16 @@
     <!-- LOGGED IN -->
     <div id="formLoggedIn" style="display:none;">
       <div style="text-align:center;padding:1rem 0;">
-        <div style="font-size:48px;margin-bottom:8px;" id="loggedAvatar">😀</div>
-        <div style="font-size:16px;font-weight:500;" id="loggedName">-</div>
+        <div class="profile-avatar-large" id="loggedAvatarCircle">
+          <span id="loggedAvatarEmoji">😀</span>
+          <img id="loggedAvatarImg" src="" style="display:none;width:100%;height:100%;object-fit:cover;" />
+        </div>
+        <div style="font-size:16px;font-weight:500;margin-bottom:4px;" id="loggedName">-</div>
+        <div style="font-size:12px;color:#555;margin-bottom:12px;" id="loggedStats"></div>
+        <label class="file-label" style="max-width:200px;margin:0 auto 8px;">
+          📷 Trocar foto
+          <input type="file" accept="image/*" onchange="changeAvatar(this)" />
+        </label>
       </div>
       <div class="modal-actions">
         <button class="danger" style="flex:1" onclick="logout()">Sair da conta</button>
@@ -219,7 +209,7 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentProfile = JSON.parse(localStorage.getItem('profile') || 'null');
 let currentVideo = null;
-let selectedEmoji = '😀';
+let avatarFileToUpload = null;
 
 function init() {
   updateNavProfile();
@@ -229,16 +219,26 @@ function init() {
 function updateNavProfile() {
   const nameEl = document.getElementById('navUsername');
   const emojiEl = document.getElementById('avatarEmoji');
+  const imgEl = document.getElementById('avatarNavImg');
   if (currentProfile) {
     nameEl.textContent = currentProfile.username;
-    emojiEl.textContent = currentProfile.avatar_url || '😀';
+    if (currentProfile.avatar_url && currentProfile.avatar_url.startsWith('http')) {
+      emojiEl.style.display = 'none';
+      imgEl.style.display = 'block';
+      imgEl.src = currentProfile.avatar_url;
+    } else {
+      emojiEl.style.display = 'block';
+      imgEl.style.display = 'none';
+      emojiEl.textContent = currentProfile.avatar_url || '👤';
+    }
   } else {
     nameEl.textContent = 'Visitante';
+    emojiEl.style.display = 'block';
+    imgEl.style.display = 'none';
     emojiEl.textContent = '👤';
   }
 }
 
-// MODAL
 function openProfileModal() {
   document.getElementById('profileModal').classList.remove('hidden');
   if (currentProfile) showModalSection('loggedIn');
@@ -257,16 +257,48 @@ function showModalSection(section) {
   document.getElementById('formRegister').style.display = section === 'register' ? '' : 'none';
   document.getElementById('formLoggedIn').style.display = section === 'loggedIn' ? '' : 'none';
   if (section === 'loggedIn' && currentProfile) {
-    document.getElementById('loggedAvatar').textContent = currentProfile.avatar_url || '😀';
+    const emojiEl = document.getElementById('loggedAvatarEmoji');
+    const imgEl = document.getElementById('loggedAvatarImg');
+    if (currentProfile.avatar_url && currentProfile.avatar_url.startsWith('http')) {
+      emojiEl.style.display = 'none';
+      imgEl.style.display = 'block';
+      imgEl.src = currentProfile.avatar_url;
+    } else {
+      emojiEl.style.display = 'block';
+      imgEl.style.display = 'none';
+      emojiEl.textContent = currentProfile.avatar_url || '😀';
+    }
     document.getElementById('loggedName').textContent = currentProfile.username;
+    loadStats();
   }
 }
-function setEmoji(e) {
-  selectedEmoji = e;
-  document.getElementById('avatarPreview').textContent = e;
+
+async function loadStats() {
+  if (!currentProfile) return;
+  const { count: histCount } = await db.from('watch_history').select('*', { count: 'exact', head: true }).eq('profile_id', currentProfile.id);
+  const { count: favCount } = await db.from('favorites').select('*', { count: 'exact', head: true }).eq('profile_id', currentProfile.id);
+  document.getElementById('loggedStats').textContent = `${histCount || 0} vídeos assistidos · ${favCount || 0} favoritos`;
 }
 
-// AUTH (simples com username+password em profiles)
+function previewAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  avatarFileToUpload = input.files[0];
+  const url = URL.createObjectURL(avatarFileToUpload);
+  document.getElementById('avatarUploadEmoji').style.display = 'none';
+  const preview = document.getElementById('avatarUploadPreview');
+  preview.style.display = 'block';
+  preview.src = url;
+}
+
+async function uploadAvatar(file, userId) {
+  const ext = file.name.split('.').pop();
+  const path = `${userId}.${ext}`;
+  const { error } = await db.storage.from('avatars').upload(path, file, { upsert: true });
+  if (error) return null;
+  const { data } = db.storage.from('avatars').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 async function register() {
   const username = document.getElementById('regUsername').value.trim();
   const password = document.getElementById('regPassword').value;
@@ -277,8 +309,17 @@ async function register() {
   const { data: existing } = await db.from('profiles').select('id').eq('username', username).maybeSingle();
   if (existing) { status.textContent = 'Nome já em uso.'; status.className = 'status error'; return; }
 
-  const { data, error } = await db.from('profiles').insert({ username, avatar_url: selectedEmoji, password_hash: btoa(password) }).select().single();
+  const { data, error } = await db.from('profiles').insert({ username, password_hash: btoa(password) }).select().single();
   if (error) { status.textContent = 'Erro ao criar conta.'; status.className = 'status error'; return; }
+
+  if (avatarFileToUpload) {
+    status.textContent = 'Enviando foto...';
+    const avatarUrl = await uploadAvatar(avatarFileToUpload, data.id);
+    if (avatarUrl) {
+      await db.from('profiles').update({ avatar_url: avatarUrl }).eq('id', data.id);
+      data.avatar_url = avatarUrl;
+    }
+  }
 
   currentProfile = data;
   localStorage.setItem('profile', JSON.stringify(data));
@@ -294,13 +335,25 @@ async function login() {
   if (!username || !password) { status.textContent = 'Preencha todos os campos.'; status.className = 'status error'; return; }
   status.textContent = 'Entrando...'; status.className = 'status';
 
-  const { data, error } = await db.from('profiles').select('*').eq('username', username).eq('password_hash', btoa(password)).maybeSingle();
+  const { data } = await db.from('profiles').select('*').eq('username', username).eq('password_hash', btoa(password)).maybeSingle();
   if (!data) { status.textContent = 'Usuário ou senha incorretos.'; status.className = 'status error'; return; }
 
   currentProfile = data;
   localStorage.setItem('profile', JSON.stringify(data));
   updateNavProfile();
   loadHistory();
+  showModalSection('loggedIn');
+}
+
+async function changeAvatar(input) {
+  if (!input.files || !input.files[0] || !currentProfile) return;
+  const file = input.files[0];
+  const avatarUrl = await uploadAvatar(file, currentProfile.id);
+  if (!avatarUrl) return;
+  await db.from('profiles').update({ avatar_url: avatarUrl }).eq('id', currentProfile.id);
+  currentProfile.avatar_url = avatarUrl;
+  localStorage.setItem('profile', JSON.stringify(currentProfile));
+  updateNavProfile();
   showModalSection('loggedIn');
 }
 
@@ -312,7 +365,6 @@ function logout() {
   closeProfileModal();
 }
 
-// PLAYER
 const player = document.getElementById('player');
 const placeholder = document.getElementById('placeholder');
 
@@ -334,7 +386,7 @@ async function loadUrl() {
   showNowPlaying(name);
   player.onerror = () => { status.textContent = 'Não foi possível carregar. O link pode não ser um arquivo direto de vídeo ou está bloqueado pelo site de origem.'; status.className = 'status error'; };
   player.oncanplay = async () => {
-    status.textContent = ''; 
+    status.textContent = '';
     await saveHistory(url, name);
     loadHistory();
   };
@@ -358,7 +410,6 @@ function showNowPlaying(name) {
   bar.style.display = 'flex';
 }
 
-// HISTORY
 async function saveHistory(url, name) {
   if (!currentProfile) return;
   await db.from('watch_history').insert({ profile_id: currentProfile.id, video_url: url, video_name: name });
@@ -379,7 +430,6 @@ function playFromHistory(url, name) {
   loadUrl();
 }
 
-// FAVORITES
 async function addFavorite() {
   if (!currentProfile) { alert('Faça login para favoritar.'); return; }
   if (!currentVideo) return;
@@ -406,7 +456,6 @@ async function removeFavorite(id) {
   loadFavorites();
 }
 
-// TABS
 function showTab(tab) {
   document.getElementById('tabPlayer').style.display = tab === 'player' ? '' : 'none';
   document.getElementById('tabFavorites').style.display = tab === 'favorites' ? '' : 'none';
