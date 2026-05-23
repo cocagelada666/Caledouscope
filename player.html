@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meu Player</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #0f0f0f; color: #eee; min-height: 100vh; }
+
+  /* NAV */
+  nav { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+  nav h1 { font-size: 18px; font-weight: 600; color: #fff; }
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .avatar-btn { width: 36px; height: 36px; border-radius: 50%; background: #3b3b3b; border: none; cursor: pointer; font-size: 15px; color: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* LAYOUT */
+  .layout { display: flex; gap: 0; min-height: calc(100vh - 53px); }
+  .sidebar { width: 260px; background: #141414; border-right: 1px solid #2a2a2a; padding: 1rem; flex-shrink: 0; overflow-y: auto; }
+  .main { flex: 1; padding: 1.5rem; overflow-y: auto; }
+
+  /* SIDEBAR */
+  .sidebar-section { margin-bottom: 1.5rem; }
+  .sidebar-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 8px; }
+  .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; color: #ccc; transition: background 0.15s; margin-bottom: 2px; }
+  .sidebar-item:hover, .sidebar-item.active { background: #2a2a2a; color: #fff; }
+  .sidebar-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.7; }
+  .history-entry { font-size: 13px; color: #aaa; padding: 6px 8px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .history-entry:hover { background: #2a2a2a; color: #fff; }
+  .empty-msg { font-size: 13px; color: #555; padding: 4px 8px; }
+
+  /* PLAYER */
+  .video-wrapper { background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 1rem; min-height: 200px; display: flex; align-items: center; justify-content: center; }
+  .video-wrapper video { width: 100%; display: block; }
+  .placeholder { text-align: center; padding: 3rem; color: #555; }
+  .placeholder svg { width: 48px; height: 48px; margin-bottom: 12px; }
+
+  /* INPUTS */
+  .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card h3 { font-size: 14px; color: #888; margin-bottom: 12px; }
+  .input-row { display: flex; gap: 8px; }
+  input[type=text], input[type=password] { background: #0f0f0f; border: 1px solid #2a2a2a; border-radius: 8px; color: #eee; padding: 9px 12px; font-size: 14px; outline: none; width: 100%; }
+  input[type=text]:focus, input[type=password]:focus { border-color: #555; }
+  button { background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 8px; color: #eee; padding: 9px 16px; font-size: 14px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+  button:hover { background: #3a3a3a; }
+  button.primary { background: #5865f2; border-color: #5865f2; color: #fff; }
+  button.primary:hover { background: #4752c4; }
+  button.danger { background: #8b1a1a; border-color: #8b1a1a; color: #fff; }
+  .divider { text-align: center; font-size: 12px; color: #555; margin: 0.75rem 0; }
+  .file-label { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border: 1px dashed #2a2a2a; border-radius: 8px; cursor: pointer; font-size: 14px; color: #888; transition: background 0.15s; }
+  .file-label:hover { background: #2a2a2a; }
+  .file-label input { display: none; }
+  .status { font-size: 12px; color: #666; margin-top: 6px; min-height: 16px; }
+  .status.error { color: #e05555; }
+  .status.ok { color: #4caf50; }
+
+  /* MODAL */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 1.5rem; width: 340px; }
+  .modal h2 { font-size: 16px; margin-bottom: 1rem; }
+  .modal-tabs { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .modal-tab { flex: 1; padding: 8px; background: #0f0f0f; border: 1px solid #2a2a2a; border-radius: 8px; cursor: pointer; font-size: 13px; color: #888; text-align: center; }
+  .modal-tab.active { background: #2a2a2a; color: #fff; }
+  .modal label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; margin-top: 10px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 1rem; }
+  .avatar-preview { width: 60px; height: 60px; border-radius: 50%; background: #2a2a2a; margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; font-size: 24px; overflow: hidden; }
+  .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <h1>🎬 Meu Player</h1>
+  <div class="nav-right">
+    <span id="navUsername" style="font-size:14px;color:#aaa;"></span>
+    <button class="avatar-btn" id="avatarBtn" onclick="openProfileModal()">
+      <span id="avatarEmoji">👤</span>
+    </button>
+  </div>
+</nav>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Menu</div>
+      <div class="sidebar-item active" onclick="showTab('player')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Player
+      </div>
+      <div class="sidebar-item" onclick="showTab('favorites')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+        Favoritos
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Histórico recente</div>
+      <div id="historyList"><div class="empty-msg">Nenhum vídeo assistido ainda.</div></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TAB PLAYER -->
+    <div id="tabPlayer">
+      <div class="video-wrapper" id="videoWrapper">
+        <div class="placeholder" id="placeholder">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.723v6.554a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+          <div>Nenhum vídeo selecionado</div>
+        </div>
+        <video id="player" controls style="display:none;" preload="metadata"></video>
+      </div>
+
+      <div id="nowPlayingBar" class="hidden" style="display:none; background:#1a1a1a; border:1px solid #2a2a2a; border-radius:8px; padding:10px 14px; margin-bottom:1rem; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <span id="nowPlayingName" style="font-size:13px;color:#aaa;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+        <button onclick="addFavorite()" style="font-size:12px;padding:6px 12px;">❤️ Favoritar</button>
+      </div>
+
+      <div class="card">
+        <h3>🔗 Colar link de vídeo</h3>
+        <div class="input-row">
+          <input type="text" id="urlInput" placeholder="https://exemplo.com/video.mp4" />
+          <input type="text" id="videoName" placeholder="Nome (opcional)" style="max-width:180px;" />
+          <button class="primary" onclick="loadUrl()">Carregar</button>
+        </div>
+        <div class="status" id="urlStatus"></div>
+      </div>
+
+      <div class="divider">ou</div>
+
+      <label class="file-label">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        Selecionar arquivo do computador
+        <input type="file" id="fileInput" accept="video/*" onchange="loadFile(this)" />
+      </label>
+    </div>
+
+    <!-- TAB FAVORITOS -->
+    <div id="tabFavorites" style="display:none;">
+      <h2 style="font-size:18px;margin-bottom:1rem;">❤️ Favoritos</h2>
+      <div id="favoritesList"><div class="empty-msg" style="color:#555;">Nenhum favorito ainda.</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL PERFIL -->
+<div class="modal-bg hidden" id="profileModal">
+  <div class="modal">
+    <h2>👤 Perfil</h2>
+    <div class="modal-tabs">
+      <div class="modal-tab active" id="tabLoginBtn" onclick="switchModalTab('login')">Entrar</div>
+      <div class="modal-tab" id="tabRegisterBtn" onclick="switchModalTab('register')">Criar conta</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="formLogin">
+      <label>Nome de usuário</label>
+      <input type="text" id="loginUsername" placeholder="seu nome" />
+      <label>Senha</label>
+      <input type="password" id="loginPassword" placeholder="••••••" />
+      <div class="modal-actions">
+        <button class="primary" style="flex:1" onclick="login()">Entrar</button>
+        <button onclick="closeProfileModal()">Cancelar</button>
+      </div>
+      <div class="status" id="loginStatus"></div>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="formRegister" style="display:none;">
+      <div class="avatar-preview" id="avatarPreview">😀</div>
+      <label>Escolher emoji de avatar</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('😀')">😀</span>
+        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('😎')">😎</span>
+        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🤖')">🤖</span>
+        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🐱')">🐱</span>
+        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🐸')">🐸</span>
+        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🦊')">🦊</span>
+        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🎮')">🎮</span>
+        <span style="font-size:20px;cursor:pointer;" onclick="setEmoji('🔥')">🔥</span>
+      </div>
+      <label>Nome de usuário</label>
+      <input type="text" id="regUsername" placeholder="seu nome" />
+      <label>Senha</label>
+      <input type="password" id="regPassword" placeholder="••••••" />
+      <div class="modal-actions">
+        <button class="primary" style="flex:1" onclick="register()">Criar conta</button>
+        <button onclick="closeProfileModal()">Cancelar</button>
+      </div>
+      <div class="status" id="regStatus"></div>
+    </div>
+
+    <!-- LOGGED IN -->
+    <div id="formLoggedIn" style="display:none;">
+      <div style="text-align:center;padding:1rem 0;">
+        <div style="font-size:48px;margin-bottom:8px;" id="loggedAvatar">😀</div>
+        <div style="font-size:16px;font-weight:500;" id="loggedName">-</div>
+      </div>
+      <div class="modal-actions">
+        <button class="danger" style="flex:1" onclick="logout()">Sair da conta</button>
+        <button onclick="closeProfileModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xbhcpdpfkyzefyzxtitr.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_2JYezEV_uRWqbE5eAhUjtw_QGdTHHo-';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentProfile = JSON.parse(localStorage.getItem('profile') || 'null');
+let currentVideo = null;
+let selectedEmoji = '😀';
+
+function init() {
+  updateNavProfile();
+  if (currentProfile) loadHistory();
+}
+
+function updateNavProfile() {
+  const nameEl = document.getElementById('navUsername');
+  const emojiEl = document.getElementById('avatarEmoji');
+  if (currentProfile) {
+    nameEl.textContent = currentProfile.username;
+    emojiEl.textContent = currentProfile.avatar_url || '😀';
+  } else {
+    nameEl.textContent = 'Visitante';
+    emojiEl.textContent = '👤';
+  }
+}
+
+// MODAL
+function openProfileModal() {
+  document.getElementById('profileModal').classList.remove('hidden');
+  if (currentProfile) showModalSection('loggedIn');
+  else showModalSection('login');
+}
+function closeProfileModal() {
+  document.getElementById('profileModal').classList.add('hidden');
+}
+function switchModalTab(tab) {
+  document.getElementById('tabLoginBtn').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegisterBtn').classList.toggle('active', tab === 'register');
+  showModalSection(tab);
+}
+function showModalSection(section) {
+  document.getElementById('formLogin').style.display = section === 'login' ? '' : 'none';
+  document.getElementById('formRegister').style.display = section === 'register' ? '' : 'none';
+  document.getElementById('formLoggedIn').style.display = section === 'loggedIn' ? '' : 'none';
+  if (section === 'loggedIn' && currentProfile) {
+    document.getElementById('loggedAvatar').textContent = currentProfile.avatar_url || '😀';
+    document.getElementById('loggedName').textContent = currentProfile.username;
+  }
+}
+function setEmoji(e) {
+  selectedEmoji = e;
+  document.getElementById('avatarPreview').textContent = e;
+}
+
+// AUTH (simples com username+password em profiles)
+async function register() {
+  const username = document.getElementById('regUsername').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const status = document.getElementById('regStatus');
+  if (!username || !password) { status.textContent = 'Preencha todos os campos.'; status.className = 'status error'; return; }
+  status.textContent = 'Criando conta...'; status.className = 'status';
+
+  const { data: existing } = await db.from('profiles').select('id').eq('username', username).maybeSingle();
+  if (existing) { status.textContent = 'Nome já em uso.'; status.className = 'status error'; return; }
+
+  const { data, error } = await db.from('profiles').insert({ username, avatar_url: selectedEmoji, password_hash: btoa(password) }).select().single();
+  if (error) { status.textContent = 'Erro ao criar conta.'; status.className = 'status error'; return; }
+
+  currentProfile = data;
+  localStorage.setItem('profile', JSON.stringify(data));
+  updateNavProfile();
+  loadHistory();
+  showModalSection('loggedIn');
+}
+
+async function login() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const status = document.getElementById('loginStatus');
+  if (!username || !password) { status.textContent = 'Preencha todos os campos.'; status.className = 'status error'; return; }
+  status.textContent = 'Entrando...'; status.className = 'status';
+
+  const { data, error } = await db.from('profiles').select('*').eq('username', username).eq('password_hash', btoa(password)).maybeSingle();
+  if (!data) { status.textContent = 'Usuário ou senha incorretos.'; status.className = 'status error'; return; }
+
+  currentProfile = data;
+  localStorage.setItem('profile', JSON.stringify(data));
+  updateNavProfile();
+  loadHistory();
+  showModalSection('loggedIn');
+}
+
+function logout() {
+  currentProfile = null;
+  localStorage.removeItem('profile');
+  updateNavProfile();
+  document.getElementById('historyList').innerHTML = '<div class="empty-msg">Nenhum vídeo assistido ainda.</div>';
+  closeProfileModal();
+}
+
+// PLAYER
+const player = document.getElementById('player');
+const placeholder = document.getElementById('placeholder');
+
+function showPlayer() {
+  placeholder.style.display = 'none';
+  player.style.display = 'block';
+}
+
+async function loadUrl() {
+  const url = document.getElementById('urlInput').value.trim();
+  const name = document.getElementById('videoName').value.trim() || url.split('/').pop() || 'Vídeo';
+  const status = document.getElementById('urlStatus');
+  if (!url) { status.textContent = 'Cole um link válido.'; status.className = 'status error'; return; }
+  status.textContent = 'Carregando...'; status.className = 'status';
+  player.src = url;
+  player.load();
+  showPlayer();
+  currentVideo = { url, name };
+  showNowPlaying(name);
+  player.onerror = () => { status.textContent = 'Não foi possível carregar. O link pode não ser um arquivo direto de vídeo ou está bloqueado pelo site de origem.'; status.className = 'status error'; };
+  player.oncanplay = async () => {
+    status.textContent = ''; 
+    await saveHistory(url, name);
+    loadHistory();
+  };
+}
+
+function loadFile(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const url = URL.createObjectURL(file);
+  const name = file.name;
+  player.src = url;
+  player.load();
+  showPlayer();
+  currentVideo = { url, name };
+  showNowPlaying(name);
+}
+
+function showNowPlaying(name) {
+  const bar = document.getElementById('nowPlayingBar');
+  document.getElementById('nowPlayingName').textContent = '▶ ' + name;
+  bar.style.display = 'flex';
+}
+
+// HISTORY
+async function saveHistory(url, name) {
+  if (!currentProfile) return;
+  await db.from('watch_history').insert({ profile_id: currentProfile.id, video_url: url, video_name: name });
+}
+
+async function loadHistory() {
+  if (!currentProfile) return;
+  const { data } = await db.from('watch_history').select('*').eq('profile_id', currentProfile.id).order('watched_at', { ascending: false }).limit(20);
+  const list = document.getElementById('historyList');
+  if (!data || data.length === 0) { list.innerHTML = '<div class="empty-msg">Nenhum vídeo assistido ainda.</div>'; return; }
+  list.innerHTML = data.map(h => `<div class="history-entry" title="${h.video_name || h.video_url}" onclick="playFromHistory('${h.video_url}','${(h.video_name||'').replace(/'/g,"\\'")}')">▶ ${h.video_name || h.video_url}</div>`).join('');
+}
+
+function playFromHistory(url, name) {
+  document.getElementById('urlInput').value = url;
+  document.getElementById('videoName').value = name;
+  showTab('player');
+  loadUrl();
+}
+
+// FAVORITES
+async function addFavorite() {
+  if (!currentProfile) { alert('Faça login para favoritar.'); return; }
+  if (!currentVideo) return;
+  await db.from('favorites').insert({ profile_id: currentProfile.id, video_url: currentVideo.url, video_name: currentVideo.name });
+  loadFavorites();
+}
+
+async function loadFavorites() {
+  if (!currentProfile) { document.getElementById('favoritesList').innerHTML = '<div class="empty-msg" style="color:#555;">Faça login para ver favoritos.</div>'; return; }
+  const { data } = await db.from('favorites').select('*').eq('profile_id', currentProfile.id).order('added_at', { ascending: false });
+  const list = document.getElementById('favoritesList');
+  if (!data || data.length === 0) { list.innerHTML = '<div class="empty-msg" style="color:#555;">Nenhum favorito ainda.</div>'; return; }
+  list.innerHTML = data.map(f => `
+    <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+      <span style="flex:1;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.video_name || f.video_url}</span>
+      <button style="font-size:12px;padding:6px 10px;" onclick="playFromHistory('${f.video_url}','${(f.video_name||'').replace(/'/g,"\\'")}')">▶ Play</button>
+      <button style="font-size:12px;padding:6px 10px;" onclick="removeFavorite('${f.id}')">🗑</button>
+    </div>
+  `).join('');
+}
+
+async function removeFavorite(id) {
+  await db.from('favorites').delete().eq('id', id);
+  loadFavorites();
+}
+
+// TABS
+function showTab(tab) {
+  document.getElementById('tabPlayer').style.display = tab === 'player' ? '' : 'none';
+  document.getElementById('tabFavorites').style.display = tab === 'favorites' ? '' : 'none';
+  document.querySelectorAll('.sidebar-item').forEach((el, i) => el.classList.toggle('active', (tab === 'player' && i === 0) || (tab === 'favorites' && i === 1)));
+  if (tab === 'favorites') loadFavorites();
+}
+
+init();
+</script>
+</body>
+</html>
