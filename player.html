@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Meu Player</title>
-<link rel="icon" href="touhou-tenshi.webp.png">
+<link rel="icon" href="favicon.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -386,6 +386,9 @@ function getYoutubeId(url) {
 function removeYoutubeFrame() {
   const existing = document.getElementById('youtubeFrame');
   if (existing) existing.remove();
+  player.onerror = null;
+  player.oncanplay = null;
+  player.src = '';
   player.style.display = 'none';
 }
 
@@ -425,6 +428,8 @@ async function loadUrl() {
 
   status.textContent = 'Carregando...'; status.className = 'status';
   removeYoutubeFrame();
+  player.onerror = null;
+  player.oncanplay = null;
   player.src = url;
   player.load();
   showPlayer();
