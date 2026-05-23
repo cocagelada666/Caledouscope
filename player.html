@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Meu Player</title>
-<link rel="icon" href="touhou-tenshi.webp.png">
+<link rel="icon" href="favicon.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,6 +27,7 @@
   .empty-msg { font-size: 13px; color: #555; padding: 4px 8px; }
   .video-wrapper { background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 1rem; min-height: 200px; display: flex; align-items: center; justify-content: center; }
   .video-wrapper video { width: 100%; display: block; }
+  .video-wrapper iframe { width: 100%; aspect-ratio: 16/9; border: none; display: block; }
   .placeholder { text-align: center; padding: 3rem; color: #555; }
   .placeholder svg { width: 48px; height: 48px; margin-bottom: 12px; }
   .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 1.25rem; margin-bottom: 1rem; }
@@ -368,7 +369,44 @@ function logout() {
 const player = document.getElementById('player');
 const placeholder = document.getElementById('placeholder');
 
-function showPlayer() {
+function getYoutubeId(url) {
+  const patterns = [
+    /youtube\.com\/watch\?v=([^&]+)/,
+    /youtu\.be\/([^?]+)/,
+    /youtube\.com\/embed\/([^?]+)/,
+    /youtube\.com\/shorts\/([^?]+)/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function removeYoutubeFrame() {
+  const existing = document.getElementById('youtubeFrame');
+  if (existing) existing.remove();
+  player.style.display = 'none';
+}
+
+async function loadYoutube(id, name, url) {
+  const status = document.getElementById('urlStatus');
+  removeYoutubeFrame();
+  placeholder.style.display = 'none';
+  const iframe = document.createElement('iframe');
+  iframe.id = 'youtubeFrame';
+  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+  iframe.allowFullscreen = true;
+  document.getElementById('videoWrapper').appendChild(iframe);
+  currentVideo = { url, name };
+  showNowPlaying(name);
+  status.textContent = '';
+  await saveHistory(url, name);
+  loadHistory();
+}
+
+
   placeholder.style.display = 'none';
   player.style.display = 'block';
 }
@@ -378,7 +416,15 @@ async function loadUrl() {
   const name = document.getElementById('videoName').value.trim() || url.split('/').pop() || 'Vídeo';
   const status = document.getElementById('urlStatus');
   if (!url) { status.textContent = 'Cole um link válido.'; status.className = 'status error'; return; }
+
+  const youtubeId = getYoutubeId(url);
+  if (youtubeId) {
+    loadYoutube(youtubeId, name, url);
+    return;
+  }
+
   status.textContent = 'Carregando...'; status.className = 'status';
+  removeYoutubeFrame();
   player.src = url;
   player.load();
   showPlayer();
@@ -394,6 +440,7 @@ async function loadUrl() {
 
 function loadFile(input) {
   if (!input.files || !input.files[0]) return;
+  removeYoutubeFrame();
   const file = input.files[0];
   const url = URL.createObjectURL(file);
   const name = file.name;
